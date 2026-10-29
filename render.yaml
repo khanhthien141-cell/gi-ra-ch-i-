@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: gio-ra-choi-dau-tri
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
