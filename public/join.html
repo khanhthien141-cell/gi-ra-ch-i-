@@ -3,9 +3,10 @@
 <div class="card"><h2>Vào phòng đấu trí</h2><p class="small">Nhập tên, chọn đội và chờ MC mở câu hỏi.</p><div class="field"><label>Họ và tên</label><input id="name" maxlength="40" placeholder="Nhập họ và tên"></div><div class="field"><label>Đội của bạn</label><select id="team"><option value="">Đang tải đội...</option></select></div><button class="btn" id="enter">Vào trả lời</button><div id="status" class="status hidden"></div></div>
 <div class="card hidden" id="game"><div class="sub" id="num">CÂU HỎI</div><h2 id="q">Đang chờ MC mở câu hỏi…</h2><div class="opts" id="opts"></div><button class="btn" id="send" disabled>Gửi đáp án</button><div id="result" class="status hidden"></div><p class="small">Mỗi câu chỉ nhận 5 lượt gửi đầu tiên. Một người chỉ gửi một lần mỗi câu.</p></div>
 <script src="/socket.io/socket.io.js"></script><script>
-const socket=io();const $=x=>async function loadTeams() {
-  try {
-    const response = await fetch("/api/state", {
+const socket=io();
+const $=x=>document.getElementById(x);
+
+async function loadTeams() {fetch("/api/state", {
       cache: "no-store"
     });
 
