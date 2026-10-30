@@ -5,19 +5,21 @@
 <script src="/socket.io/socket.io.js"></script><script>
 const socket=io();
 const $=x=>document.getElementById(x);
-
-async function loadTeams() {fetch("/api/state", {
+let profile = null, q = null, choice = -1, sent = false;
+async function loadTeams() {
+  try {
+    const response = await fetch("/api/state", {
       cache: "no-store"
     });
 
-    if (!response.ok) throw new Error("Không tải được dữ liệu");
-
+    if (!response.ok) {
+      throw new Error("Không tải được dữ liệu");
+    }
     const data = await response.json();
 
-    if (!Array.isArray(data.teams)) {
+    if (!Array.isArray(data.teams) || data.teams.length === 0) {
       throw new Error("Không tìm thấy danh sách đội");
     }
-
     fillTeams(data.teams);
   } catch (error) {
     $("team").innerHTML =
@@ -25,8 +27,7 @@ async function loadTeams() {fetch("/api/state", {
     console.error(error);
   }
 }
-
-loadTeams();document.getElementById(x);let profile=null,q=null,choice=-1,sent=false;
+loadTeams();
 socket.on("connect",()=>socket.emit("student-hello"));socket.on("team-list",teams=>fillTeams(teams));socket.on("host-teams",teams=>fillTeams(teams));
 function fillTeams(ts){let old=$("team").value;$("team").innerHTML='<option value="">Chọn đội</option>'+ts.map((t,i)=>`<option value="${i}">${esc(t.icon||"★")} ${esc(t.name)}</option>`).join("");if(old!=="")$("team").value=old}
 $("enter").onclick=()=>{let name=$("name").value.trim(),team=$("team").value;if(!name||team===""){$("status").textContent="Vui lòng nhập tên và chọn đội.";$("status").classList.remove("hidden");return}profile={name,team:Number(team)};socket.emit("student-join",profile);$("status").textContent="Đã vào phòng. Chờ MC mở câu hỏi.";$("status").classList.remove("hidden");$("game").classList.remove("hidden")};
