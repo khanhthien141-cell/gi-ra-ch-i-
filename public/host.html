@@ -1,6 +1,20 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MC - Giờ ra chơi</title><style>
 *{box-sizing:border-box}body{margin:0;background:#102b23;color:#f8efd9;font:16px Arial,sans-serif}header{padding:22px 26px;background:#173b2e;border-bottom:3px solid #b99655}h1{color:#e4c477;margin:0}main{max-width:1320px;margin:auto;padding:20px}.layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:#1d4738;border:2px solid #b99655;border-radius:16px;padding:20px;margin-bottom:16px}h2{margin-top:0;color:#e4c477}button,input,select{font:inherit;border-radius:8px;padding:10px}button{background:#e4c477;color:#19372a;border:0;cursor:pointer;font-weight:bold;margin:5px}button:disabled{opacity:.45}select,input{background:#fff9e9;color:#1d372b;border:1px solid #b99655}select{max-width:100%}input{width:100%}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.team{display:flex;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid #50705f}.score{font-weight:bold;font-size:22px;color:#e4c477}.answer{padding:10px;border-bottom:1px solid #537260}.good{color:#a5f0a8}.bad{color:#ffc0b3}.muted{color:#c8d5c9;font-size:14px}#qr{display:block;background:#fff;padding:8px;width:220px;height:220px;margin:auto}#qrUrl{word-break:break-all;font-size:12px}#history details{border-top:1px solid #66806c;padding:10px 0}#history summary{cursor:pointer;font-weight:bold}#question{font-size:23px;line-height:1.4}#answers{line-height:1.9}.status{background:#d9c48b;color:#213a2c;border-radius:8px;padding:10px;margin-top:10px}@media(max-width:820px){.layout{grid-template-columns:1fr}}
-</style></head><body><header><h1>GIỜ RA CHƠI · BẢNG ĐIỀU KHIỂN MC</h1><p>20 câu hỏi · 4 đội · 5 người đúng nhanh nhất</p></header><main><div class="layout"><div><section class="card"><h2>Điều khiển câu hỏi</h2><div class="row"><select id="pick"></select><button id="open">Mở câu / Tạo QR mới</button><button id="close">Kết thúc câu</button></div><p id="stateText" class="muted">Chưa mở câu</p><h3 id="question">Chọn câu hỏi để bắt đầu</h3><div id="answers"></div><p id="correct" class="muted"></p></section><section class="card"><h2>QR của câu hiện tại</h2><img id="qr" alt="QR câu hỏi" hidden><p id="qrHint" style="text-align:center">Mở câu để tạo mã QR</p><p class="muted">Học sinh quét mã mới mỗi khi chuyển câu. Mã cũ không dùng được.</p></section><section class="card"><h2>Đổi tên 4 đội</h2><div id="editTeams"></div><button id="saveTeams">Lưu tên đội</button></section></div><div><section class="card"><h2>Bảng điểm tự động</h2><div id="teams"></div></section><section class="card"><h2>Người trả lời câu này</h2><p class="muted">Hiển thị ngay khi có đáp án. Sai = 0 điểm. Đủ 5 đáp án đúng thì tự khóa câu.</p><div id="entries">Chưa có người trả lời.</div></section><section class="card"><h2>Lịch sử từng câu</h2><div id="history">Chưa có lịch sử.</div><button id="export">Xuất lịch sử CSV</button></section></div></div><div class="status" id="notice">Sẵn sàng.</div></main><script src="/socket.io/socket.io.js"></script><script>
+</style></head><body><header><h1>GIỜ RA CHƠI · BẢNG ĐIỀU KHIỂN MC</h1><p>20 câu hỏi · 4 đội · 5 người đúng nhanh nhất</p></header><main><div class="layout"><div><section class="card"><h2>Điều khiển câu hỏi</h2><div class="row"><select id="pick"></select><button id="open">Mở câu / Tạo QR mới</button><button id="close">Kết thúc câu</button></div><p id="stateText" class="muted">Chưa mở câu</p><h3 id="question">Chọn câu hỏi để bắt đầu</h3><div id="answers"></div><p id="correct" class="muted"></p></section><section class="card"><h2>QR của câu hiện tại</h2><img id="qr" alt="QR câu hỏi" hidden><p id="qrHint" style="text-align:center">Mở câu để tạo mã QR</p><p class="muted">Học sinh quét mã mới mỗi khi chuyển câu. Mã cũ không dùng được.</p></section><section class="card"><h2>Đổi tên 4 đội</h2><div id="editTeams"></div><button id="saveTeams">Lưu tên đội</button></section></div><div><section class="card"><h2>Bảng điểm tự động</h2><div id="teams"></div></section><section class="card"><h2>Người trả lời câu này</h2><p class="muted">Hiển thị ngay khi có đáp án. Sai = 0 điểm. Đủ 5 đáp án đúng thì tự khóa câu.</p><div id="entries">Chưa có người trả lời.</div></section><section class="card"><h2>Quản lý câu hỏi (quản trị viên)</h2>
+<p class="muted">Nhập mật khẩu quản trị để sửa, thêm hoặc xóa câu hỏi. Kết thúc câu đang chơi trước khi lưu.</p>
+<div class="row"><input id="adminPassword" type="password" autocomplete="off" placeholder="Mật khẩu quản trị" style="flex:1;min-width:180px"><button id="adminLogin">Mở trình chỉnh sửa</button></div>
+<div id="questionEditor" hidden>
+<p class="muted">Chọn câu để chỉnh, hoặc thêm câu mới. Chọn đáp án đúng trong danh sách A–D.</p>
+<div class="row"><select id="editPick"></select><button id="addQuestion">+ Thêm câu</button><button id="removeQuestion">Xóa câu đang chọn</button></div>
+<label>Môn học<input id="editSubject" maxlength="80"></label>
+<label>Nội dung câu hỏi<textarea id="editText" rows="3" maxlength="500" style="width:100%;padding:10px;border-radius:8px"></textarea></label>
+<div id="editAnswers"></div>
+<label>Đáp án đúng<select id="editCorrect"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select></label>
+<div class="row"><button id="saveQuestions">Lưu toàn bộ câu hỏi</button><button id="adminLogout">Khóa chỉnh sửa</button></div>
+<p class="muted">Bản lưu trên Render Free có thể mất khi máy chủ khởi động lại hoặc triển khai lại. Nên sao lưu câu hỏi sau khi sửa.</p>
+<button id="downloadQuestions">Tải bản sao JSON</button>
+</div>
+</section><section class="card"><h2>Lịch sử từng câu</h2><div id="history">Chưa có lịch sử.</div><button id="export">Xuất lịch sử CSV</button></section></div></div><div class="status" id="notice">Sẵn sàng.</div></main><script src="/socket.io/socket.io.js"></script><script>
 const $=id=>document.getElementById(id);const socket=io();let state=null,questionList=[];let editing=false;
 function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function notice(t){$('notice').textContent=t}
@@ -13,5 +27,68 @@ $('open').onclick=async()=>{if(!confirm('Mở câu này sẽ tạo QR mới và 
 $('close').onclick=async()=>{try{await api('/api/close','POST',{});notice('Đã đóng câu và lưu kết quả.')}catch(e){notice(e.message)}};
 $('editTeams').addEventListener('focusin',()=>editing=true);$('saveTeams').onclick=async()=>{try{const ts=state.teams.map((t,i)=>({...t,name:document.querySelector(`[data-team="${i}"]`).value.trim()||t.name}));editing=false;await api('/api/teams','POST',{teams:ts});notice('Đã lưu tên đội.')}catch(e){notice(e.message)}};
 $('export').onclick=()=>{if(!state)return;const rows=[['Lượt','Câu','Môn','Thứ tự gửi','Tên','Đội','Đáp án','Đúng','Hạng','Điểm','Thời gian']];state.history.forEach(h=>h.submissions.forEach(e=>rows.push([h.round,h.questionNo,h.subject,e.order,e.name,e.teamName,e.answer,e.correct?'Đúng':'Sai',e.rank||'',e.points,e.time])));const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replaceAll('"','""')+'"').join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='lich-su-tra-loi.csv';a.click();URL.revokeObjectURL(a.href)};
+
+let adminKey='',editableQuestions=[],selectedEdit=-1;
+async function adminApi(url,method='GET',data){
+ const r=await fetch(url,{method,headers:{'Content-Type':'application/json','x-admin-password':adminKey},body:data?JSON.stringify(data):undefined,cache:'no-store'});
+ const j=await r.json();if(!r.ok)throw Error(j.error||'Có lỗi quản trị');return j;
+}
+function captureEdit(){
+ if(selectedEdit<0||!editableQuestions[selectedEdit])return;
+ const q=editableQuestions[selectedEdit];
+ q.subject=$('editSubject').value;
+ q.text=$('editText').value;
+ q.answers=[0,1,2,3].map(i=>$('editAnswer'+i).value);
+ q.correct=Number($('editCorrect').value);
+}
+function showEdit(index){
+ selectedEdit=index;
+ $('editPick').innerHTML=editableQuestions.map((q,i)=>`<option value="${i}">Câu ${i+1}: ${esc(q.text).slice(0,65)}</option>`).join('');
+ $('editPick').value=String(index);
+ const q=editableQuestions[index];
+ if(!q)return;
+ $('editSubject').value=q.subject;
+ $('editText').value=q.text;
+ $('editAnswers').innerHTML=q.answers.map((a,i)=>`<label>Đáp án ${'ABCD'[i]}<input id="editAnswer${i}" maxlength="250" value="${esc(a)}"></label>`).join('');
+ $('editCorrect').value=String(q.correct);
+}
+$('adminLogin').onclick=async()=>{
+ adminKey=$('adminPassword').value;
+ if(!adminKey)return notice('Hãy nhập mật khẩu quản trị.');
+ try{
+  editableQuestions=await adminApi('/api/admin/questions');
+  $('questionEditor').hidden=false;
+  showEdit(0);
+  notice('Đã mở trình chỉnh sửa câu hỏi.');
+ }catch(e){adminKey='';notice(e.message)}
+};
+$('editPick').onchange=()=>{captureEdit();showEdit(Number($('editPick').value))};
+$('addQuestion').onclick=()=>{
+ captureEdit();
+ editableQuestions.push({text:'Câu hỏi mới',subject:'Toán',answers:['Đáp án A','Đáp án B','Đáp án C','Đáp án D'],correct:0});
+ showEdit(editableQuestions.length-1);
+};
+$('removeQuestion').onclick=()=>{
+ if(editableQuestions.length<=1)return notice('Phải giữ ít nhất một câu hỏi.');
+ if(!confirm('Xóa câu đang chọn khỏi bộ câu hỏi?'))return;
+ editableQuestions.splice(selectedEdit,1);
+ showEdit(Math.min(selectedEdit,editableQuestions.length-1));
+};
+$('saveQuestions').onclick=async()=>{
+ captureEdit();
+ if(!confirm('Lưu toàn bộ câu hỏi? Câu hiện tại sẽ được đặt lại, điểm và lịch sử vẫn giữ nguyên.'))return;
+ try{
+  const r=await adminApi('/api/admin/questions','POST',{questions:editableQuestions});
+  questionList=await api('/api/questions');
+  $('pick').innerHTML=questionList.map(q=>`<option value="${q.no}">Câu ${q.no} · ${esc(q.subject)} · ${esc(q.text).slice(0,45)}</option>`).join('');
+  notice(r.message||'Đã lưu câu hỏi.');
+ }catch(e){notice(e.message)}
+};
+$('adminLogout').onclick=()=>{adminKey='';$('adminPassword').value='';editableQuestions=[];$('questionEditor').hidden=true;notice('Đã khóa chỉnh sửa.')};
+$('downloadQuestions').onclick=()=>{
+ captureEdit();
+ const blob=new Blob([JSON.stringify(editableQuestions,null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='cau-hoi-sao-luu.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 init();
 </script></body></html>
