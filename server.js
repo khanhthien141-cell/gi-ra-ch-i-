@@ -4,7 +4,37 @@ const path=require('path');
 const crypto=require('crypto');
 const {Server}=require('socket.io');
 const QRCode=require('qrcode');
+const fs=require('fs');
 const questions=require('./questions');
+const questionStore=path.join(__dirname,'questions-edited.json');
+try {
+ const saved=JSON.parse(fs.readFileSync(questionStore,'utf8'));
+ if(Array.isArray(saved)&&saved.length) questions.splice(0,questions.length,...saved);
+} catch(e) { if(e.code!=='ENOENT') console.error('Question store:',e.message); }
+const adminPassword=process.env.ADMIN_PASSWORD||'';
+function authorized(req){
+ const supplied=String(req.get('x-admin-password')||'');
+ if(!adminPassword||!supplied)return false;
+ const a=Buffer.from(supplied),b=Buffer.from(adminPassword);
+ return a.length===b.length&&crypto.timingSafeEqual(a,b);
+}
+function requireAdmin(req,res,next){
+ if(!adminPassword)return res.status(503).json({error:'Chưa đặt ADMIN_PASSWORD trên Render'});
+ if(!authorized(req))return res.status(401).json({error:'Mật khẩu quản trị không đúng'});
+ next();
+}
+function validateQuestions(input){
+ if(!Array.isArray(input)||input.length<1||input.length>100)throw Error('Cần từ 1 đến 100 câu hỏi');
+ return input.map((q,i)=>{
+  const text=String(q.text||'').trim(),subject=String(q.subject||'').trim();
+  const answers=q.answers;
+  const correct=Number(q.correct);
+  if(!text||text.length>500||!subject||subject.length>80||!Array.isArray(answers)||answers.length!==4||
+     answers.some(a=>typeof a!=='string'||!a.trim()||a.length>250)||
+     !Number.isInteger(correct)||correct<0||correct>3)throw Error('Dữ liệu không hợp lệ ở câu '+(i+1));
+  return [text,answers.map(a=>a.trim()),correct,'',subject];
+ });
+}
 const app=express(),server=http.createServer(app),io=new Server(server);
 app.use(express.json());app.use(express.static(path.join(__dirname,'public')));
 let teams=[
@@ -25,6 +55,21 @@ function origin(req){const proto=req.get('x-forwarded-proto')?.split(',')[0]||re
 app.get('/api/state',(req,res)=>res.json(state()));
 app.get('/api/questions',(req,res)=>res.json(questions.map((q,i)=>({no:i+1,text:q[0],answers:q[1],subject:q[4]}))));
 app.get('/api/history',(req,res)=>res.json(safeHistory()));
+app.get('/api/admin/questions',requireAdmin,(req,res)=>res.json(questions.map((q,i)=>({no:i+1,text:q[0],answers:q[1],correct:q[2],subject:q[4]}))));
+app.post('/api/admin/questions',requireAdmin,(req,res)=>{
+ if(open)return res.status(409).json({error:'Hãy kết thúc câu hiện tại trước khi sửa bộ câu hỏi'});
+ let next;
+ try{next=validateQuestions(req.body.questions);}catch(e){return res.status(400).json({error:e.message});}
+ try{
+  const temp=questionStore+'.tmp';
+  fs.writeFileSync(temp,JSON.stringify(next,null,2),'utf8');
+  fs.renameSync(temp,questionStore);
+ }catch(e){return res.status(500).json({error:'Không lưu được file trên máy chủ: '+e.message});}
+ questions.splice(0,questions.length,...next);
+ questionIndex=0;token='';entries=[];open=false;
+ io.emit('question-closed');publish();
+ res.json({ok:true,total:questions.length,message:'Đã lưu câu hỏi. Điểm và lịch sử cũ được giữ lại.'});
+});
 app.get('/api/qr',async(req,res)=>{try{const url=`${origin(req)}/join.html?r=${round}&k=${encodeURIComponent(token)}`;const png=await QRCode.toBuffer(url,{width:380,margin:2,errorCorrectionLevel:'M'});res.type('png').set('Cache-Control','no-store').send(png);}catch(e){res.status(500).send('QR error');}});
 app.post('/api/teams',(req,res)=>{if(!Array.isArray(req.body.teams)||req.body.teams.length!==4)return res.status(400).json({error:'Cần đúng 4 đội'});teams=teams.map((old,i)=>({...old,name:String(req.body.teams[i].name||old.name).slice(0,35),color:String(req.body.teams[i].color||old.color),icon:String(req.body.teams[i].icon||old.icon)}));publish();res.json({ok:true,teams});});
 app.post('/api/open',(req,res)=>{const no=Number(req.body.no);if(!Number.isInteger(no)||no<1||no>questions.length)return res.status(400).json({error:'Câu không hợp lệ'});if(questionIndex)saveRound();round++;questionIndex=no;token=crypto.randomBytes(18).toString('hex');entries=[];open=true;io.emit('question-open',publicQuestion());publish();res.json({ok:true,round,question:publicQuestion()});});
